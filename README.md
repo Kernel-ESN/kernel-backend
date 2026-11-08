@@ -1,36 +1,75 @@
-# Backend de la plateforme d'annonces
+# Kernel Consulting — listings platform API
 
-Spring Boot 4.1, Java 21, PostgreSQL 18. Le contrat est `../docs/api/openapi.yaml`, les choix sont dans `../docs/adr/0006-backend.md`.
+REST API behind the Kernel Consulting listings platform: job offers and calls for tenders in Niger, candidate accounts and applications, employer spaces, email alerts and moderation.
 
-## Démarrer en local
+The frontend lives in [kernel-vitrine](https://github.com/Kernel-ESN/kernel-vitrine).
+
+**Stack:** Spring Boot 4, Java 21, PostgreSQL 18, Flyway migrations, Testcontainers for integration tests.
+
+## Quick start
+
+Requirements: **Java 21**, **Maven 3.9+**, and **Docker** or **Podman** to run PostgreSQL.
 
 ```bash
-cp .env.example .env            # puis changer DB_PASSWORD
-docker compose up -d            # ou podman compose up -d
-set -a; . ./.env; set +a
+git clone https://github.com/Kernel-ESN/kernel-backend.git
+cd kernel-backend
+
+cp .env.example .env                 # then set DB_PASSWORD
+docker compose up -d                 # PostgreSQL (or: podman compose up -d)
+set -a; . ./.env; set +a             # load the variables into the shell
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-Santé : http://localhost:8080/actuator/health/liveness
+The API listens on http://localhost:8080. To check that it is up, open http://localhost:8080/actuator/health/liveness.
 
-Le profil `dev` charge les 48 annonces fictives et trois comptes d'essai (`candidat@example.org`, `employeur@example.org`, `moderateur@example.org`, mot de passe `motdepasse`). Il n'existe que pour le développement.
+The `dev` profile loads 48 sample listings and three test accounts, all with the password `motdepasse`:
 
-## Front branché sur ce backend
+| Account | Role |
+|---|---|
+| `candidat@example.org` | Candidate |
+| `employeur@example.org` | Employer, with a verified sample organisation |
+| `moderateur@example.org` | Moderator |
+
+This profile is for local development only.
+
+## Connecting the frontend
+
+In a clone of [kernel-vitrine](https://github.com/Kernel-ESN/kernel-vitrine):
 
 ```bash
-cd ../Kernel-vitrine && npm run start:api
+npm ci
+npm run start:api
 ```
+
+The Angular dev server sends `/api` calls to this API on port 8080.
+
+## Configuration
+
+| Variable | Purpose |
+|---|---|
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD` | PostgreSQL database and credentials |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First moderator account, created at startup if missing (password: 12 characters minimum) |
+
+`.env` is ignored by git; never commit it.
 
 ## Tests
 
-Les tests d'intégration démarrent un vrai PostgreSQL avec Testcontainers.
+Integration tests start a real PostgreSQL with Testcontainers.
 
 ```bash
 mvn test
-# Avec Podman :
+```
+
+With Podman instead of Docker:
+
+```bash
 DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock TESTCONTAINERS_RYUK_DISABLED=true mvn test
 ```
 
-Couverture : `target/site/jacoco/index.html`.
+With Ryuk disabled, the test container is left behind after the run. Remove it with:
 
-Avec Podman, Ryuk étant désactivé, le conteneur de test reste après la suite : `podman ps -aq --filter label=org.testcontainers=true | xargs -r podman rm -f`.
+```bash
+podman ps -aq --filter label=org.testcontainers=true | xargs -r podman rm -f
+```
+
+The coverage report is written to `target/site/jacoco/index.html`.
