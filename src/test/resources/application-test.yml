@@ -1,0 +1,5 @@
+app:
+  storage:
+    root: target/test-files
+  rate-limit:
+    auth-per-minute: 100000
